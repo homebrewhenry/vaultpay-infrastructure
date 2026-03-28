@@ -111,3 +111,48 @@ resource "aws_route_table_association" "public_b" {
   subnet_id      = aws_subnet.public_b.id
   route_table_id = aws_route_table.public.id
 }
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name    = "vaultpay-nat-eip"
+    Project = "VaultPay"
+  }
+}
+
+resource "aws_nat_gateway" "main" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_a.id
+
+  tags = {
+    Name    = "vaultpay-nat-gw"
+    Project = "VaultPay"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.main.id
+  }
+
+  tags = {
+    Name    = "vaultpay-private-rt"
+    Project = "VaultPay"
+  }
+}
+
+resource "aws_route_table_association" "app_private_a" {
+  subnet_id      = aws_subnet.app_private_a.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "app_private_b" {
+  subnet_id      = aws_subnet.app_private_b.id
+  route_table_id = aws_route_table.private.id
+}
